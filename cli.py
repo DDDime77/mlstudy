@@ -133,6 +133,7 @@ def predict_command(args):
     # Get user and item IDs
     user_id = args.user_id
     item_id = args.item_id
+    topic = getattr(args, 'topic', None)
 
     # Handle item features if provided
     item_features = None
@@ -143,15 +144,25 @@ def predict_command(args):
             print(f"Error: Invalid JSON for item features: {args.item_features}")
             sys.exit(1)
 
+    # Display available topics if requested
+    if topic:
+        available_topics = model.get_topics()
+        if available_topics and topic not in available_topics:
+            print(f"Warning: Topic '{topic}' not found in model")
+            print(f"Available topics: {', '.join(available_topics)}")
+            print("Proceeding with prediction anyway...")
+
     # Make prediction
     print(f"\nMaking prediction for:")
     print(f"  User ID: {user_id}")
     print(f"  Item ID: {item_id}")
+    if topic:
+        print(f"  Topic: {topic}")
     if item_features:
         print(f"  Item features: {item_features}")
 
     try:
-        p_correct, expected_time = model.predict(user_id, item_id, item_features)
+        p_correct, expected_time = model.predict(user_id, item_id, item_features, topic)
     except Exception as e:
         print(f"Error making prediction: {e}")
         sys.exit(1)
@@ -232,26 +243,44 @@ def stats_command(args):
         top_users = user_stats.nlargest(args.top_users, 'ability_theta')
         print(top_users.to_string(index=False))
 
-    # Display item statistics
-    print("\n" + "-" * 70)
-    print("ITEM PARAMETERS")
-    print("-" * 70)
-    item_stats = model.get_item_stats()
-    print(f"\nTotal items: {len(item_stats)}")
-    print(f"\nDiscrimination (a):")
-    print(f"  Mean: {item_stats['discrimination_a'].mean():.3f}")
-    print(f"  Std Dev: {item_stats['discrimination_a'].std():.3f}")
-    print(f"\nDifficulty (b):")
-    print(f"  Mean: {item_stats['difficulty_b'].mean():.3f}")
-    print(f"  Std Dev: {item_stats['difficulty_b'].std():.3f}")
-    print(f"\nTime Intensity (beta):")
-    print(f"  Mean: {item_stats['time_intensity_beta'].mean():.3f}")
-    print(f"  Std Dev: {item_stats['time_intensity_beta'].std():.3f}")
+    # Display topics
+    topics = model.get_topics()
+    if topics:
+        print("\n" + "-" * 70)
+        print("TOPICS")
+        print("-" * 70)
+        print(f"Available topics: {', '.join(topics)}")
+        print(f"\nItems per topic:")
+        for topic in topics:
+            topic_items = model.get_item_stats(topic=topic)
+            print(f"  {topic:20s}: {len(topic_items)} items")
 
-    if args.hardest_items:
-        print(f"\nHardest {args.hardest_items} items (by difficulty):")
-        hardest = item_stats.nlargest(args.hardest_items, 'difficulty_b')
-        print(hardest.to_string(index=False))
+    # Display item statistics
+    topic_filter = getattr(args, 'topic', None)
+    print("\n" + "-" * 70)
+    if topic_filter:
+        print(f"ITEM PARAMETERS (Topic: {topic_filter})")
+    else:
+        print("ITEM PARAMETERS (All Topics)")
+    print("-" * 70)
+    item_stats = model.get_item_stats(topic=topic_filter)
+    print(f"\nTotal items: {len(item_stats)}")
+
+    if len(item_stats) > 0:
+        print(f"\nDiscrimination (a):")
+        print(f"  Mean: {item_stats['discrimination_a'].mean():.3f}")
+        print(f"  Std Dev: {item_stats['discrimination_a'].std():.3f}")
+        print(f"\nDifficulty (b):")
+        print(f"  Mean: {item_stats['difficulty_b'].mean():.3f}")
+        print(f"  Std Dev: {item_stats['difficulty_b'].std():.3f}")
+        print(f"\nTime Intensity (beta):")
+        print(f"  Mean: {item_stats['time_intensity_beta'].mean():.3f}")
+        print(f"  Std Dev: {item_stats['time_intensity_beta'].std():.3f}")
+
+        if args.hardest_items:
+            print(f"\nHardest {args.hardest_items} items (by difficulty):")
+            hardest = item_stats.nlargest(args.hardest_items, 'difficulty_b')
+            print(hardest.to_string(index=False))
 
     # Global parameters
     print("\n" + "-" * 70)
@@ -310,6 +339,8 @@ For more information, see README.md
                                 help='User ID to make prediction for')
     predict_parser.add_argument('--item-id', '-i', required=True,
                                 help='Item/task ID to make prediction for')
+    predict_parser.add_argument('--topic', '-t',
+                                help='Topic of the item (e.g., calculus, microeconomics)')
     predict_parser.add_argument('--item-features', '-f',
                                 help='JSON string with item features (for new items): '
                                      '{"a": discrimination, "b": difficulty, "beta": time_intensity}')
@@ -321,6 +352,8 @@ For more information, see README.md
     stats_parser = subparsers.add_parser('stats', help='Display model statistics')
     stats_parser.add_argument('--model-file', '-m', default='models/lnirt_model.pkl',
                               help='Path to trained model file (default: models/lnirt_model.pkl)')
+    stats_parser.add_argument('--topic', '-t',
+                              help='Filter statistics by topic')
     stats_parser.add_argument('--top-users', type=int, default=0,
                               help='Show top N users by ability')
     stats_parser.add_argument('--hardest-items', type=int, default=0,

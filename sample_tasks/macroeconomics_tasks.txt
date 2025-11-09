@@ -1,0 +1,13 @@
+# Macroeconomics Sample Tasks
+# Format: task_id | question | estimated_difficulty | estimated_time(seconds)
+
+macroeconomics_001 | Define GDP and list its four main components | 2 | 80
+macroeconomics_002 | Explain the difference between nominal GDP and real GDP | 2 | 90
+macroeconomics_003 | What is inflation and how is it measured using CPI? | 2 | 100
+macroeconomics_004 | Describe the primary role of a central bank | 2 | 85
+macroeconomics_005 | What is monetary policy? Name two key tools | 3 | 110
+macroeconomics_006 | Explain fiscal policy and distinguish between expansionary and contractionary policy | 3 | 130
+macroeconomics_007 | How is the unemployment rate calculated? | 2 | 70
+macroeconomics_008 | Describe the four phases of the business cycle | 2 | 95
+macroeconomics_009 | What is aggregate demand and what factors shift it? | 3 | 120
+macroeconomics_010 | Explain the multiplier effect with a numerical example | 4 | 150

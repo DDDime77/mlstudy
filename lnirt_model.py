@@ -38,10 +38,11 @@ class LNIRTModel:
 
     def __init__(self):
         self.user_params = {}  # {user_id: {'theta': ability, 'tau': speed}}
-        self.item_params = {}  # {item_id: {'a': discrimination, 'b': difficulty, 'beta': time_intensity}}
+        self.item_params = {}  # {item_id: {'a': discrimination, 'b': difficulty, 'beta': time_intensity, 'topic': topic}}
         self.sigma = 1.0  # residual SD for log-response time
         self.rho = 0.0  # correlation between ability and speed
         self.is_trained = False
+        self.item_topics = {}  # {item_id: topic} - mapping for quick lookup
 
     def _irt_probability(self, theta: float, a: float, b: float) -> float:
         """Calculate probability of correct response using 2PL IRT"""
@@ -108,10 +109,17 @@ class LNIRTModel:
         Fit the model to training data
 
         Args:
-            data: DataFrame with columns ['user_id', 'item_id', 'correct', 'response_time']
+            data: DataFrame with columns ['user_id', 'item_id', 'correct', 'response_time', 'topic' (optional)]
             max_iter: Maximum iterations for optimization
             verbose: Whether to print progress
         """
+        # Extract topic information if available
+        if 'topic' in data.columns:
+            self.item_topics = data.groupby('item_id')['topic'].first().to_dict()
+            if verbose:
+                topics = data['topic'].unique()
+                print(f"Training with topics: {', '.join(sorted(topics))}")
+
         if verbose:
             print("Starting LNIRT model training...")
             print(f"Data shape: {data.shape}")
@@ -187,7 +195,8 @@ class LNIRTModel:
             item_ids[i]: {
                 'a': item_a[i],
                 'b': item_b[i],
-                'beta': item_beta[i]
+                'beta': item_beta[i],
+                'topic': self.item_topics.get(item_ids[i], 'unknown')
             }
             for i in range(n_items)
         }
@@ -199,7 +208,7 @@ class LNIRTModel:
             print(f"Final negative log-likelihood: {result.fun:.2f}")
             print(f"Sigma (RT residual SD): {self.sigma:.3f}")
 
-    def predict(self, user_id: str, item_id: str, item_features: Optional[Dict] = None) -> Tuple[float, float]:
+    def predict(self, user_id: str, item_id: str, item_features: Optional[Dict] = None, topic: Optional[str] = None) -> Tuple[float, float]:
         """
         Predict probability of correct response and expected response time
 
@@ -207,12 +216,19 @@ class LNIRTModel:
             user_id: User identifier
             item_id: Item identifier
             item_features: Optional item features for new items
+            topic: Optional topic to filter items (validates item belongs to topic)
 
         Returns:
             (probability_correct, expected_time_seconds)
         """
         if not self.is_trained:
             raise ValueError("Model must be trained before making predictions")
+
+        # Validate topic if specified
+        if topic is not None and item_id in self.item_params:
+            item_topic = self.item_params[item_id].get('topic', 'unknown')
+            if item_topic != topic:
+                raise ValueError(f"Item '{item_id}' belongs to topic '{item_topic}', not '{topic}'")
 
         # Handle new users (use population mean)
         if user_id not in self.user_params:
@@ -225,10 +241,20 @@ class LNIRTModel:
         # Handle new items
         if item_id not in self.item_params:
             if item_features is None:
-                # Use population mean
-                a = 1.0
-                b = 0.0
-                beta = 0.0
+                # Use population mean (optionally filtered by topic)
+                if topic is not None:
+                    # Calculate means from items in the specified topic
+                    topic_items = {k: v for k, v in self.item_params.items() if v.get('topic') == topic}
+                    if topic_items:
+                        a = np.mean([v['a'] for v in topic_items.values()])
+                        b = np.mean([v['b'] for v in topic_items.values()])
+                        beta = np.mean([v['beta'] for v in topic_items.values()])
+                    else:
+                        a, b, beta = 1.0, 0.0, 0.0
+                else:
+                    a = 1.0
+                    b = 0.0
+                    beta = 0.0
             else:
                 # Could implement feature-based estimation here
                 a = item_features.get('a', 1.0)
@@ -262,6 +288,7 @@ class LNIRTModel:
         model_data = {
             'user_params': self.user_params,
             'item_params': self.item_params,
+            'item_topics': self.item_topics,
             'sigma': self.sigma,
             'rho': self.rho,
             'is_trained': self.is_trained
@@ -275,6 +302,7 @@ class LNIRTModel:
             model_data = pickle.load(f)
         self.user_params = model_data['user_params']
         self.item_params = model_data['item_params']
+        self.item_topics = model_data.get('item_topics', {})  # backward compatibility
         self.sigma = model_data['sigma']
         self.rho = model_data['rho']
         self.is_trained = model_data['is_trained']
@@ -290,14 +318,30 @@ class LNIRTModel:
             })
         return pd.DataFrame(data)
 
-    def get_item_stats(self) -> pd.DataFrame:
-        """Get summary statistics of item parameters"""
+    def get_item_stats(self, topic: Optional[str] = None) -> pd.DataFrame:
+        """Get summary statistics of item parameters
+
+        Args:
+            topic: Optional topic to filter items by
+        """
         data = []
         for item_id, params in self.item_params.items():
-            data.append({
-                'item_id': item_id,
-                'discrimination_a': params['a'],
-                'difficulty_b': params['b'],
-                'time_intensity_beta': params['beta']
-            })
+            item_topic = params.get('topic', 'unknown')
+            if topic is None or item_topic == topic:
+                data.append({
+                    'item_id': item_id,
+                    'topic': item_topic,
+                    'discrimination_a': params['a'],
+                    'difficulty_b': params['b'],
+                    'time_intensity_beta': params['beta']
+                })
         return pd.DataFrame(data)
+
+    def get_topics(self) -> list:
+        """Get list of all topics in the model"""
+        topics = set()
+        for params in self.item_params.values():
+            topic = params.get('topic', 'unknown')
+            if topic != 'unknown':
+                topics.add(topic)
+        return sorted(list(topics))

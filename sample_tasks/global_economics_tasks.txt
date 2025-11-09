@@ -1,0 +1,13 @@
+# Global Economics Sample Tasks
+# Format: task_id | question | estimated_difficulty | estimated_time(seconds)
+
+global_economics_001 | What is comparative advantage in international trade? | 3 | 110
+global_economics_002 | Explain the balance of payments and its two main accounts | 3 | 130
+global_economics_003 | What are exchange rates and what factors influence them? | 3 | 120
+global_economics_004 | Describe the economic impact of tariffs on both importing and exporting countries | 4 | 150
+global_economics_005 | Define globalization and discuss one benefit and one drawback | 3 | 115
+global_economics_006 | Explain the role of the World Trade Organization (WTO) | 3 | 100
+global_economics_007 | What is foreign direct investment (FDI) and why is it important? | 3 | 105
+global_economics_008 | Analyze the effects of a persistent trade deficit on an economy | 4 | 140
+global_economics_009 | What are emerging markets? Give three examples and key characteristics | 3 | 110
+global_economics_010 | Explain currency appreciation vs depreciation and their trade impacts | 3 | 125
