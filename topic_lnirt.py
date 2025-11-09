@@ -41,9 +41,57 @@ class TopicLNIRTModel:
         mean = beta - tau
         return -0.5 * np.log(2 * np.pi * sigma**2) - 0.5 * ((log_rt - mean) / sigma)**2
 
+    def _joint_log_likelihood(self, params, data_subset, user_idx_map, param_type):
+        """
+        Calculate joint log-likelihood for LNIRT model
+
+        Args:
+            params: Parameters to optimize
+            data_subset: Data for this optimization
+            user_idx_map: Mapping from user_id to index
+            param_type: 'user' or 'difficulty'
+        """
+        log_likelihood = 0.0
+
+        for _, row in data_subset.iterrows():
+            user_id = row['user_id']
+            difficulty = int(row['difficulty'])
+            correct = row['correct']
+            response_time = row['response_time']
+
+            # Get parameters
+            if param_type == 'user':
+                theta = params[user_idx_map[user_id] * 2]
+                tau = params[user_idx_map[user_id] * 2 + 1]
+                a = self.difficulty_params[difficulty]['a']
+                b = self.difficulty_params[difficulty]['b']
+                beta = self.difficulty_params[difficulty]['beta']
+            else:  # param_type == 'difficulty'
+                theta = self.user_params[user_id]['theta']
+                tau = self.user_params[user_id]['tau']
+                # params = [a, b, beta] for this difficulty
+                a = params[0]
+                b = params[1]
+                beta = params[2]
+
+            # IRT component: P(correct | theta, a, b)
+            p_correct = self._irt_probability(theta, a, b)
+            p_correct = np.clip(p_correct, 1e-10, 1 - 1e-10)  # Numerical stability
+
+            if correct == 1:
+                log_likelihood += np.log(p_correct)
+            else:
+                log_likelihood += np.log(1 - p_correct)
+
+            # Lognormal RT component: P(log(RT) | tau, beta, sigma)
+            log_rt = np.log(response_time + 0.1)  # Add small constant to avoid log(0)
+            log_likelihood += self._log_rt_likelihood(log_rt, tau, beta, self.sigma)
+
+        return -log_likelihood  # Return negative for minimization
+
     def fit(self, data: pd.DataFrame, verbose: bool = False):
         """
-        Train model on topic-specific data
+        Train model on topic-specific data using LNIRT maximum likelihood estimation
 
         Args:
             data: DataFrame with ['user_id', 'difficulty', 'correct', 'response_time']
@@ -63,50 +111,98 @@ class TopicLNIRTModel:
         user_theta = np.random.randn(n_users) * 0.3
         user_tau = np.random.randn(n_users) * 0.3
 
-        # Optimize using simplified approach (EM-like)
-        for iteration in range(20):  # Quick convergence
-            # Update difficulty parameters based on all users
-            for diff_level in [1, 2, 3]:
-                diff_data = data[data['difficulty'] == diff_level]
-                if len(diff_data) > 0:
-                    # Update based on empirical statistics
-                    accuracy = diff_data['correct'].mean()
-                    mean_time = diff_data['response_time'].mean()
-
-                    # Adjust difficulty based on accuracy (lower accuracy = higher difficulty)
-                    self.difficulty_params[diff_level]['b'] = -np.log(accuracy / (1 - accuracy + 0.01))
-                    self.difficulty_params[diff_level]['beta'] = np.log(mean_time + 1)
-
-            # Update user parameters
-            user_idx_map = {uid: i for i, uid in enumerate(user_ids)}
-            for user_id in user_ids:
-                user_data = data[data['user_id'] == user_id]
-                if len(user_data) > 0:
-                    idx = user_idx_map[user_id]
-                    # Estimate ability from accuracy
-                    user_accuracy = user_data['correct'].mean()
-                    # Clip accuracy to avoid division by zero or log of 0
-                    user_accuracy = np.clip(user_accuracy, 0.05, 0.95)
-                    user_theta[idx] = np.log(user_accuracy / (1 - user_accuracy))
-                    # Estimate speed from response time
-                    user_mean_time = user_data['response_time'].mean()
-                    user_tau[idx] = 4.0 - np.log(user_mean_time + 1)
-
-        # Store user parameters
+        # Initialize user_params dict for use in optimization
         self.user_params = {
             user_ids[i]: {'theta': float(user_theta[i]), 'tau': float(user_tau[i])}
             for i in range(n_users)
         }
 
+        # EM-like algorithm: alternate between optimizing user and difficulty parameters
+        for iteration in range(5):  # EM iterations (reduced for efficiency)
+            # Step 1: Update difficulty parameters (holding user parameters fixed)
+            for diff_level in [1, 2, 3]:
+                diff_data = data[data['difficulty'] == diff_level]
+                if len(diff_data) > 0:
+                    # Get initial parameters
+                    initial_params = [
+                        self.difficulty_params[diff_level]['a'],
+                        self.difficulty_params[diff_level]['b'],
+                        self.difficulty_params[diff_level]['beta']
+                    ]
+
+                    # Optimize difficulty parameters
+                    result = minimize(
+                        self._joint_log_likelihood,
+                        initial_params,
+                        args=(diff_data, None, 'difficulty'),
+                        method='L-BFGS-B',
+                        bounds=[(0.5, 3.0), (-3.0, 3.0), (2.0, 6.0)],  # Reasonable bounds
+                        options={'maxiter': 50}  # Limit iterations
+                    )
+
+                    if result.success:
+                        self.difficulty_params[diff_level]['a'] = float(result.x[0])
+                        self.difficulty_params[diff_level]['b'] = float(result.x[1])
+                        self.difficulty_params[diff_level]['beta'] = float(result.x[2])
+
+            # Step 2: Update user parameters INDIVIDUALLY (much faster than joint optimization)
+            for user_id in user_ids:
+                user_data = data[data['user_id'] == user_id]
+                if len(user_data) > 0:
+                    # Define single-user likelihood
+                    def single_user_likelihood(params):
+                        theta, tau = params
+                        log_like = 0.0
+                        for _, row in user_data.iterrows():
+                            difficulty = int(row['difficulty'])
+                            correct = row['correct']
+                            response_time = row['response_time']
+
+                            a = self.difficulty_params[difficulty]['a']
+                            b = self.difficulty_params[difficulty]['b']
+                            beta = self.difficulty_params[difficulty]['beta']
+
+                            # IRT component
+                            p_correct = self._irt_probability(theta, a, b)
+                            p_correct = np.clip(p_correct, 1e-10, 1 - 1e-10)
+                            log_like += np.log(p_correct) if correct == 1 else np.log(1 - p_correct)
+
+                            # RT component
+                            log_rt = np.log(response_time + 0.1)
+                            log_like += self._log_rt_likelihood(log_rt, tau, beta, self.sigma)
+
+                        return -log_like
+
+                    # Optimize this user's parameters
+                    initial_params = [
+                        self.user_params[user_id]['theta'],
+                        self.user_params[user_id]['tau']
+                    ]
+
+                    result = minimize(
+                        single_user_likelihood,
+                        initial_params,
+                        method='L-BFGS-B',
+                        bounds=[(-3.0, 3.0), (-3.0, 3.0)],
+                        options={'maxiter': 50}
+                    )
+
+                    if result.success:
+                        self.user_params[user_id]['theta'] = float(result.x[0])
+                        self.user_params[user_id]['tau'] = float(result.x[1])
+
+            if verbose and iteration % 2 == 0:
+                print(f"  Iteration {iteration + 1}/5...")
+
         self.is_trained = True
 
         if verbose:
-            print(f"  ✓ Training complete")
+            print(f"  ✓ Training complete (LNIRT ML estimation)")
             print(f"  Users trained: {len(self.user_params)}")
 
     def fit_user_specific(self, user_data: pd.DataFrame, user_id: str, verbose: bool = False):
         """
-        Train user-specific parameters using their prediction history
+        Train user-specific parameters using their prediction history with LNIRT ML estimation
 
         This uses data from the predictions table which includes both predicted
         and actual results to refine the user's ability and speed parameters.
@@ -132,32 +228,71 @@ class TopicLNIRTModel:
                 avg_tau = 0.0
             self.user_params[user_id] = {'theta': avg_theta, 'tau': avg_tau}
 
-        # Estimate user parameters from actual performance
-        # Aggregate across all difficulties for more robust estimates
-        overall_accuracy = user_data['correct'].mean()
-        overall_time = user_data['response_time'].mean()
+        # Define likelihood function for single user
+        def user_log_likelihood(params, data):
+            theta, tau = params
+            log_like = 0.0
 
-        # Update ability based on overall accuracy
-        if 0.05 < overall_accuracy < 0.95:
-            theta_estimate = np.log(overall_accuracy / (1 - overall_accuracy))
-            current_theta = self.user_params[user_id]['theta']
-            self.user_params[user_id]['theta'] = 0.6 * current_theta + 0.4 * theta_estimate
-        elif overall_accuracy >= 0.95:
-            # Very high accuracy - strong positive ability
-            self.user_params[user_id]['theta'] = 0.6 * self.user_params[user_id]['theta'] + 0.4 * 2.0
-        elif overall_accuracy <= 0.05:
-            # Very low accuracy - strong negative ability
-            self.user_params[user_id]['theta'] = 0.6 * self.user_params[user_id]['theta'] + 0.4 * (-2.0)
+            for _, row in data.iterrows():
+                difficulty = int(row['difficulty'])
+                correct = row['correct']
+                response_time = row['response_time']
 
-        # Update speed based on overall time compared to difficulty parameters
-        # Use difficulty 2 (medium) as reference
-        beta_ref = self.difficulty_params[2]['beta']
-        tau_estimate = beta_ref - np.log(overall_time + 1)
-        current_tau = self.user_params[user_id]['tau']
-        self.user_params[user_id]['tau'] = 0.6 * current_tau + 0.4 * tau_estimate
+                # Get difficulty parameters
+                a = self.difficulty_params[difficulty]['a']
+                b = self.difficulty_params[difficulty]['b']
+                beta = self.difficulty_params[difficulty]['beta']
+
+                # IRT component
+                p_correct = self._irt_probability(theta, a, b)
+                p_correct = np.clip(p_correct, 1e-10, 1 - 1e-10)
+
+                if correct == 1:
+                    log_like += np.log(p_correct)
+                else:
+                    log_like += np.log(1 - p_correct)
+
+                # Lognormal RT component
+                log_rt = np.log(response_time + 0.1)
+                log_like += self._log_rt_likelihood(log_rt, tau, beta, self.sigma)
+
+            return -log_like  # Negative for minimization
+
+        # Optimize user-specific parameters
+        initial_params = [
+            self.user_params[user_id]['theta'],
+            self.user_params[user_id]['tau']
+        ]
+
+        result = minimize(
+            user_log_likelihood,
+            initial_params,
+            args=(user_data,),
+            method='L-BFGS-B',
+            bounds=[(-3.0, 3.0), (-3.0, 3.0)]
+        )
+
+        if result.success:
+            self.user_params[user_id]['theta'] = float(result.x[0])
+            self.user_params[user_id]['tau'] = float(result.x[1])
+        else:
+            # Fallback to simple estimation if optimization fails
+            if verbose:
+                print(f"  Note: Using fallback estimation (optimization didn't converge)")
+
+            overall_accuracy = user_data['correct'].mean()
+            overall_time = user_data['response_time'].mean()
+
+            if 0.05 < overall_accuracy < 0.95:
+                theta_estimate = np.log(overall_accuracy / (1 - overall_accuracy))
+                self.user_params[user_id]['theta'] = 0.7 * self.user_params[user_id]['theta'] + 0.3 * theta_estimate
+
+            beta_ref = self.difficulty_params[2]['beta']
+            tau_estimate = beta_ref - np.log(overall_time + 1)
+            self.user_params[user_id]['tau'] = 0.7 * self.user_params[user_id]['tau'] + 0.3 * tau_estimate
 
         if verbose:
-            print(f"  ✓ User parameters updated")
+            print(f"  ✓ User parameters updated (LNIRT ML estimation)")
             print(f"    Ability (θ): {self.user_params[user_id]['theta']:.3f}")
             print(f"    Speed (τ): {self.user_params[user_id]['tau']:.3f}")
 
