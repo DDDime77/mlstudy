@@ -85,7 +85,9 @@ class TopicLNIRTModel:
                     idx = user_idx_map[user_id]
                     # Estimate ability from accuracy
                     user_accuracy = user_data['correct'].mean()
-                    user_theta[idx] = np.log(user_accuracy / (1 - user_accuracy + 0.01))
+                    # Clip accuracy to avoid division by zero or log of 0
+                    user_accuracy = np.clip(user_accuracy, 0.05, 0.95)
+                    user_theta[idx] = np.log(user_accuracy / (1 - user_accuracy))
                     # Estimate speed from response time
                     user_mean_time = user_data['response_time'].mean()
                     user_tau[idx] = 4.0 - np.log(user_mean_time + 1)
@@ -101,6 +103,63 @@ class TopicLNIRTModel:
         if verbose:
             print(f"  ✓ Training complete")
             print(f"  Users trained: {len(self.user_params)}")
+
+    def fit_user_specific(self, user_data: pd.DataFrame, user_id: str, verbose: bool = False):
+        """
+        Train user-specific parameters using their prediction history
+
+        This uses data from the predictions table which includes both predicted
+        and actual results to refine the user's ability and speed parameters.
+
+        Args:
+            user_data: DataFrame with columns ['difficulty', 'correct', 'response_time',
+                                               'predicted_correct', 'predicted_time']
+            user_id: User identifier
+            verbose: Print progress
+        """
+        if verbose:
+            print(f"  Training user-specific parameters for {user_id}...")
+            print(f"  Using {len(user_data)} completed tasks")
+
+        # Initialize user if not exists
+        if user_id not in self.user_params:
+            if self.user_params:
+                # Use population average as starting point
+                avg_theta = np.mean([p['theta'] for p in self.user_params.values()])
+                avg_tau = np.mean([p['tau'] for p in self.user_params.values()])
+            else:
+                avg_theta = 0.0
+                avg_tau = 0.0
+            self.user_params[user_id] = {'theta': avg_theta, 'tau': avg_tau}
+
+        # Estimate user parameters from actual performance
+        # Aggregate across all difficulties for more robust estimates
+        overall_accuracy = user_data['correct'].mean()
+        overall_time = user_data['response_time'].mean()
+
+        # Update ability based on overall accuracy
+        if 0.05 < overall_accuracy < 0.95:
+            theta_estimate = np.log(overall_accuracy / (1 - overall_accuracy))
+            current_theta = self.user_params[user_id]['theta']
+            self.user_params[user_id]['theta'] = 0.6 * current_theta + 0.4 * theta_estimate
+        elif overall_accuracy >= 0.95:
+            # Very high accuracy - strong positive ability
+            self.user_params[user_id]['theta'] = 0.6 * self.user_params[user_id]['theta'] + 0.4 * 2.0
+        elif overall_accuracy <= 0.05:
+            # Very low accuracy - strong negative ability
+            self.user_params[user_id]['theta'] = 0.6 * self.user_params[user_id]['theta'] + 0.4 * (-2.0)
+
+        # Update speed based on overall time compared to difficulty parameters
+        # Use difficulty 2 (medium) as reference
+        beta_ref = self.difficulty_params[2]['beta']
+        tau_estimate = beta_ref - np.log(overall_time + 1)
+        current_tau = self.user_params[user_id]['tau']
+        self.user_params[user_id]['tau'] = 0.6 * current_tau + 0.4 * tau_estimate
+
+        if verbose:
+            print(f"  ✓ User parameters updated")
+            print(f"    Ability (θ): {self.user_params[user_id]['theta']:.3f}")
+            print(f"    Speed (τ): {self.user_params[user_id]['tau']:.3f}")
 
     def predict(self, user_id: str, difficulty: int) -> Tuple[float, float]:
         """

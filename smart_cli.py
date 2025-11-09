@@ -12,49 +12,121 @@ from predictions_db import PredictionsDB
 
 def train_command(args):
     """Train model on topic-specific data"""
-    print("=" * 70)
-    print(f"TRAINING MODEL: {args.topic}")
-    print("=" * 70)
-    print()
-
-    # Load data
     import pandas as pd
-    try:
-        data = pd.read_csv(args.data_file)
-    except FileNotFoundError:
-        print(f"Error: File not found: {args.data_file}")
-        sys.exit(1)
 
-    # Validate columns
-    required_cols = ['user_id', 'difficulty', 'correct', 'response_time']
-    missing = [c for c in required_cols if c not in data.columns]
-    if missing:
-        print(f"Error: Missing columns: {missing}")
-        print(f"Required: {required_cols}")
-        sys.exit(1)
-
-    # Validate difficulty values
-    if not data['difficulty'].isin([1, 2, 3]).all():
-        print("Error: Difficulty must be 1, 2, or 3")
-        sys.exit(1)
-
-    print(f"Loaded {len(data)} training samples")
-    print(f"  Users: {data['user_id'].nunique()}")
-    print(f"  Difficulties: {sorted(data['difficulty'].unique())}")
-    print(f"  Accuracy: {data['correct'].mean():.1%}")
-    print(f"  Mean time: {data['response_time'].mean():.1f}s")
+    print("=" * 70)
+    if args.user_id:
+        print(f"TRAINING MODEL (USER-SPECIFIC): {args.topic} for {args.user_id}")
+    else:
+        print(f"TRAINING MODEL (GENERAL): {args.topic}")
+    print("=" * 70)
     print()
 
-    # Train model
     manager = TopicModelManager()
     model = manager.get_model(args.topic)
-    model.fit(data, verbose=True)
-    manager.save_model(args.topic)
+    db = PredictionsDB()
 
-    print()
-    print("=" * 70)
-    print("TRAINING COMPLETE!")
-    print("=" * 70)
+    if args.user_id:
+        # USER-SPECIFIC TRAINING
+        print(f"Loading user-specific training data for {args.user_id}...")
+
+        # Get user's data from predictions table (includes both predictions and actuals)
+        user_data = db.get_user_training_data(args.user_id, args.topic)
+
+        if len(user_data) == 0:
+            print(f"Warning: No completed tasks found for user {args.user_id} in topic {args.topic}")
+            print("User needs to complete at least one task before personalized training")
+            db.close()
+            sys.exit(1)
+
+        print(f"  Found {len(user_data)} completed tasks for this user")
+        print(f"  Accuracy: {user_data['correct'].mean():.1%}")
+        print(f"  Mean time: {user_data['response_time'].mean():.1f}s")
+        print()
+
+        # Train user-specific parameters
+        print("Training personalized model for this user...")
+        model.fit_user_specific(user_data, args.user_id, verbose=True)
+        manager.save_model(args.topic)
+
+        # Also contribute actual results to general training pool
+        print()
+        print("Contributing user's actual results to general training pool...")
+        # This data is already in training_data table from update_prediction
+
+        print()
+        print("=" * 70)
+        print("USER-SPECIFIC TRAINING COMPLETE!")
+        print("=" * 70)
+
+    else:
+        # GENERAL TRAINING (all users, new data only)
+        print("Loading new training data from database...")
+
+        # Get only new data not yet used for general training
+        new_data = db.get_training_data(args.topic, only_new=True)
+
+        if len(new_data) == 0:
+            print("No new training data found in database.")
+
+            # Try loading from file if provided
+            if args.data_file:
+                print(f"Loading from file: {args.data_file}")
+                try:
+                    data = pd.read_csv(args.data_file)
+
+                    # Validate columns
+                    required_cols = ['user_id', 'difficulty', 'correct', 'response_time']
+                    missing = [c for c in required_cols if c not in data.columns]
+                    if missing:
+                        print(f"Error: Missing columns: {missing}")
+                        print(f"Required: {required_cols}")
+                        db.close()
+                        sys.exit(1)
+
+                    # Validate difficulty values
+                    if not data['difficulty'].isin([1, 2, 3]).all():
+                        print("Error: Difficulty must be 1, 2, or 3")
+                        db.close()
+                        sys.exit(1)
+
+                    print(f"Loaded {len(data)} training samples from file")
+                    print(f"  Users: {data['user_id'].nunique()}")
+                    print(f"  Difficulties: {sorted(data['difficulty'].unique())}")
+                    print(f"  Accuracy: {data['correct'].mean():.1%}")
+                    print(f"  Mean time: {data['response_time'].mean():.1f}s")
+                    print()
+
+                except FileNotFoundError:
+                    print(f"Error: File not found: {args.data_file}")
+                    db.close()
+                    sys.exit(1)
+            else:
+                print("No new data and no file provided. Nothing to train.")
+                db.close()
+                sys.exit(1)
+        else:
+            print(f"  Found {len(new_data)} new training samples")
+            print(f"  Users: {new_data['user_id'].nunique()}")
+            print(f"  Accuracy: {new_data['correct'].mean():.1%}")
+            print(f"  Mean time: {new_data['response_time'].mean():.1f}s")
+            print()
+            data = new_data
+
+        # Train model
+        print("Training general model on new data...")
+        model.fit(data, verbose=True)
+        manager.save_model(args.topic)
+
+        # Mark data as used
+        db.mark_training_data_used(args.topic)
+
+        print()
+        print("=" * 70)
+        print("GENERAL TRAINING COMPLETE!")
+        print("=" * 70)
+
+    db.close()
 
     # Show model stats
     if args.stats:
@@ -309,7 +381,8 @@ def main():
     # Train command
     train_parser = subparsers.add_parser('train', help='Train model on topic data')
     train_parser.add_argument('--topic', required=True, help='Topic name')
-    train_parser.add_argument('--data-file', required=True, help='Path to training CSV')
+    train_parser.add_argument('--data-file', help='Path to training CSV (optional if training from database)')
+    train_parser.add_argument('--user-id', help='Train for specific user only (uses prediction history)')
     train_parser.add_argument('--stats', action='store_true', help='Show statistics after training')
     train_parser.set_defaults(func=train_command)
 

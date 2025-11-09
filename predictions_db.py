@@ -46,7 +46,8 @@ class PredictionsDB:
             difficulty INTEGER NOT NULL,
             correct INTEGER NOT NULL,
             response_time REAL NOT NULL,
-            timestamp TEXT NOT NULL
+            timestamp TEXT NOT NULL,
+            used_for_general_training INTEGER DEFAULT 0
         )
         ''')
 
@@ -122,15 +123,65 @@ class PredictionsDB:
         columns = [desc[0] for desc in cursor.description]
         return dict(zip(columns, row))
 
-    def get_training_data(self, topic: str) -> pd.DataFrame:
-        """Get all training data for a topic"""
-        query = '''
-        SELECT user_id, topic, difficulty, correct, response_time, timestamp
-        FROM training_data
-        WHERE topic = ?
-        ORDER BY timestamp
-        '''
+    def get_training_data(self, topic: str, only_new: bool = False) -> pd.DataFrame:
+        """
+        Get training data for a topic
+
+        Args:
+            topic: Topic name
+            only_new: If True, only return data not yet used for general training
+        """
+        if only_new:
+            query = '''
+            SELECT user_id, topic, difficulty, correct, response_time, timestamp
+            FROM training_data
+            WHERE topic = ? AND used_for_general_training = 0
+            ORDER BY timestamp
+            '''
+        else:
+            query = '''
+            SELECT user_id, topic, difficulty, correct, response_time, timestamp
+            FROM training_data
+            WHERE topic = ?
+            ORDER BY timestamp
+            '''
         return pd.read_sql_query(query, self.conn, params=(topic,))
+
+    def mark_training_data_used(self, topic: str):
+        """Mark all training data for a topic as used for general training"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+        UPDATE training_data
+        SET used_for_general_training = 1
+        WHERE topic = ?
+        ''', (topic,))
+        self.conn.commit()
+
+    def get_user_training_data(self, user_id: str, topic: str) -> pd.DataFrame:
+        """
+        Get user-specific training data including predictions with actual results
+
+        This combines:
+        1. Data from predictions table where actual results exist
+        2. Historical training data for this user
+
+        Returns DataFrame with columns: user_id, difficulty, correct, response_time,
+                                       predicted_correct, predicted_time
+        """
+        query = '''
+        SELECT
+            user_id,
+            difficulty,
+            actual_correct as correct,
+            actual_time as response_time,
+            predicted_correct,
+            predicted_time,
+            created_at as timestamp
+        FROM predictions
+        WHERE user_id = ? AND topic = ? AND actual_correct IS NOT NULL
+        ORDER BY created_at
+        '''
+        return pd.read_sql_query(query, self.conn, params=(user_id, topic))
 
     def get_user_history(self, user_id: str, topic: Optional[str] = None) -> pd.DataFrame:
         """Get user's prediction history"""
