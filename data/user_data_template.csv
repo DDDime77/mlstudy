@@ -1,0 +1,4 @@
+user_id,item_id,correct,response_time,notes
+user_001,item_001,1,45.2,User got this correct in 45.2 seconds
+user_001,item_002,0,120.5,"User got this wrong, took 2+ minutes"
+user_002,item_001,1,30.8,"Faster user, correct answer"

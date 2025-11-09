@@ -1,0 +1,602 @@
+[
+  {
+    "item_id": "item_000",
+    "question_text": "Calculate the calculus expression for case 0",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_001",
+    "question_text": "Solve the calculus problem: equation 1",
+    "topic": "calculus",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_002",
+    "question_text": "Solve the statistics problem: equation 2",
+    "topic": "statistics",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_003",
+    "question_text": "Calculate the calculus expression for case 3",
+    "topic": "calculus",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_004",
+    "question_text": "Find the solution to algebra question 4",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_005",
+    "question_text": "Solve the calculus problem: equation 5",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_006",
+    "question_text": "Solve the statistics problem: equation 6",
+    "topic": "statistics",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_007",
+    "question_text": "Calculate the statistics expression for case 7",
+    "topic": "statistics",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_008",
+    "question_text": "Calculate the calculus expression for case 8",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_009",
+    "question_text": "Find the solution to algebra question 9",
+    "topic": "algebra",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_010",
+    "question_text": "Solve the statistics problem: equation 10",
+    "topic": "statistics",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_011",
+    "question_text": "Find the solution to algebra question 11",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_012",
+    "question_text": "Solve the calculus problem: equation 12",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_013",
+    "question_text": "Calculate the trigonometry expression for case 13",
+    "topic": "trigonometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_014",
+    "question_text": "Solve the algebra problem: equation 14",
+    "topic": "algebra",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_015",
+    "question_text": "Determine the statistics value in problem 15",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_016",
+    "question_text": "Find the solution to geometry question 16",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_017",
+    "question_text": "Find the solution to trigonometry question 17",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_018",
+    "question_text": "Calculate the geometry expression for case 18",
+    "topic": "geometry",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_019",
+    "question_text": "Find the solution to algebra question 19",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_020",
+    "question_text": "Solve the trigonometry problem: equation 20",
+    "topic": "trigonometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_021",
+    "question_text": "Determine the geometry value in problem 21",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_022",
+    "question_text": "Solve the trigonometry problem: equation 22",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_023",
+    "question_text": "Solve the statistics problem: equation 23",
+    "topic": "statistics",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_024",
+    "question_text": "Determine the statistics value in problem 24",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_025",
+    "question_text": "Solve the trigonometry problem: equation 25",
+    "topic": "trigonometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_026",
+    "question_text": "Solve the algebra problem: equation 26",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_027",
+    "question_text": "Calculate the statistics expression for case 27",
+    "topic": "statistics",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_028",
+    "question_text": "Solve the trigonometry problem: equation 28",
+    "topic": "trigonometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_029",
+    "question_text": "Calculate the trigonometry expression for case 29",
+    "topic": "trigonometry",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_030",
+    "question_text": "Determine the geometry value in problem 30",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_031",
+    "question_text": "Solve the geometry problem: equation 31",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_032",
+    "question_text": "Solve the statistics problem: equation 32",
+    "topic": "statistics",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_033",
+    "question_text": "Calculate the geometry expression for case 33",
+    "topic": "geometry",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_034",
+    "question_text": "Determine the statistics value in problem 34",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_035",
+    "question_text": "Solve the algebra problem: equation 35",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_036",
+    "question_text": "Find the solution to calculus question 36",
+    "topic": "calculus",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_037",
+    "question_text": "Calculate the geometry expression for case 37",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_038",
+    "question_text": "Calculate the calculus expression for case 38",
+    "topic": "calculus",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_039",
+    "question_text": "Calculate the trigonometry expression for case 39",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_040",
+    "question_text": "Determine the algebra value in problem 40",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_041",
+    "question_text": "Calculate the algebra expression for case 41",
+    "topic": "algebra",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_042",
+    "question_text": "Solve the trigonometry problem: equation 42",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_043",
+    "question_text": "Determine the calculus value in problem 43",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_044",
+    "question_text": "Determine the trigonometry value in problem 44",
+    "topic": "trigonometry",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_045",
+    "question_text": "Solve the geometry problem: equation 45",
+    "topic": "geometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_046",
+    "question_text": "Solve the algebra problem: equation 46",
+    "topic": "algebra",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_047",
+    "question_text": "Calculate the geometry expression for case 47",
+    "topic": "geometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_048",
+    "question_text": "Solve the statistics problem: equation 48",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_049",
+    "question_text": "Calculate the geometry expression for case 49",
+    "topic": "geometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_050",
+    "question_text": "Solve the algebra problem: equation 50",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_051",
+    "question_text": "Find the solution to statistics question 51",
+    "topic": "statistics",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_052",
+    "question_text": "Calculate the calculus expression for case 52",
+    "topic": "calculus",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_053",
+    "question_text": "Find the solution to statistics question 53",
+    "topic": "statistics",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_054",
+    "question_text": "Solve the trigonometry problem: equation 54",
+    "topic": "trigonometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_055",
+    "question_text": "Solve the algebra problem: equation 55",
+    "topic": "algebra",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_056",
+    "question_text": "Determine the statistics value in problem 56",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_057",
+    "question_text": "Determine the calculus value in problem 57",
+    "topic": "calculus",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_058",
+    "question_text": "Determine the algebra value in problem 58",
+    "topic": "algebra",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_059",
+    "question_text": "Calculate the calculus expression for case 59",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_060",
+    "question_text": "Find the solution to statistics question 60",
+    "topic": "statistics",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_061",
+    "question_text": "Determine the statistics value in problem 61",
+    "topic": "statistics",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_062",
+    "question_text": "Determine the algebra value in problem 62",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_063",
+    "question_text": "Determine the statistics value in problem 63",
+    "topic": "statistics",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_064",
+    "question_text": "Determine the trigonometry value in problem 64",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_065",
+    "question_text": "Solve the calculus problem: equation 65",
+    "topic": "calculus",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_066",
+    "question_text": "Calculate the calculus expression for case 66",
+    "topic": "calculus",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_067",
+    "question_text": "Solve the algebra problem: equation 67",
+    "topic": "algebra",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_068",
+    "question_text": "Determine the calculus value in problem 68",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_069",
+    "question_text": "Determine the algebra value in problem 69",
+    "topic": "algebra",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_070",
+    "question_text": "Find the solution to geometry question 70",
+    "topic": "geometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_071",
+    "question_text": "Determine the algebra value in problem 71",
+    "topic": "algebra",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_072",
+    "question_text": "Find the solution to algebra question 72",
+    "topic": "algebra",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_073",
+    "question_text": "Calculate the geometry expression for case 73",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_074",
+    "question_text": "Calculate the algebra expression for case 74",
+    "topic": "algebra",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_075",
+    "question_text": "Calculate the trigonometry expression for case 75",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_076",
+    "question_text": "Solve the algebra problem: equation 76",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_077",
+    "question_text": "Calculate the calculus expression for case 77",
+    "topic": "calculus",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_078",
+    "question_text": "Find the solution to trigonometry question 78",
+    "topic": "trigonometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_079",
+    "question_text": "Solve the geometry problem: equation 79",
+    "topic": "geometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_080",
+    "question_text": "Solve the algebra problem: equation 80",
+    "topic": "algebra",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_081",
+    "question_text": "Determine the algebra value in problem 81",
+    "topic": "algebra",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_082",
+    "question_text": "Determine the statistics value in problem 82",
+    "topic": "statistics",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_083",
+    "question_text": "Solve the statistics problem: equation 83",
+    "topic": "statistics",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_084",
+    "question_text": "Solve the calculus problem: equation 84",
+    "topic": "calculus",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_085",
+    "question_text": "Solve the trigonometry problem: equation 85",
+    "topic": "trigonometry",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_086",
+    "question_text": "Solve the calculus problem: equation 86",
+    "topic": "calculus",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_087",
+    "question_text": "Determine the algebra value in problem 87",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_088",
+    "question_text": "Solve the statistics problem: equation 88",
+    "topic": "statistics",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_089",
+    "question_text": "Solve the geometry problem: equation 89",
+    "topic": "geometry",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_090",
+    "question_text": "Solve the calculus problem: equation 90",
+    "topic": "calculus",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_091",
+    "question_text": "Calculate the algebra expression for case 91",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_092",
+    "question_text": "Calculate the calculus expression for case 92",
+    "topic": "calculus",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_093",
+    "question_text": "Solve the calculus problem: equation 93",
+    "topic": "calculus",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_094",
+    "question_text": "Calculate the trigonometry expression for case 94",
+    "topic": "trigonometry",
+    "estimated_difficulty": 3
+  },
+  {
+    "item_id": "item_095",
+    "question_text": "Solve the geometry problem: equation 95",
+    "topic": "geometry",
+    "estimated_difficulty": 1
+  },
+  {
+    "item_id": "item_096",
+    "question_text": "Find the solution to algebra question 96",
+    "topic": "algebra",
+    "estimated_difficulty": 2
+  },
+  {
+    "item_id": "item_097",
+    "question_text": "Calculate the trigonometry expression for case 97",
+    "topic": "trigonometry",
+    "estimated_difficulty": 5
+  },
+  {
+    "item_id": "item_098",
+    "question_text": "Solve the algebra problem: equation 98",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  },
+  {
+    "item_id": "item_099",
+    "question_text": "Calculate the algebra expression for case 99",
+    "topic": "algebra",
+    "estimated_difficulty": 4
+  }
+]
