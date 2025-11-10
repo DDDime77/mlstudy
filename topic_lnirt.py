@@ -200,18 +200,97 @@ class TopicLNIRTModel:
             print(f"  ✓ Training complete (LNIRT ML estimation)")
             print(f"  Users trained: {len(self.user_params)}")
 
+    def _analyze_prediction_errors(self, user_data: pd.DataFrame, verbose: bool = False):
+        """
+        Analyze prediction errors to detect systematic biases
+
+        Args:
+            user_data: DataFrame with ['difficulty', 'correct', 'response_time',
+                                       'predicted_correct', 'predicted_time']
+            verbose: Print detailed error analysis
+
+        Returns:
+            dict with error statistics
+        """
+        # Check if predicted columns exist
+        if 'predicted_correct' not in user_data.columns or 'predicted_time' not in user_data.columns:
+            return None
+
+        # Calculate errors
+        correctness_errors = []
+        time_errors = []
+        time_ratio_errors = []
+
+        for _, row in user_data.iterrows():
+            # Correctness error: actual - predicted
+            error_correct = row['correct'] - row['predicted_correct']
+            correctness_errors.append(error_correct)
+
+            # Time error: log(actual) - log(predicted)
+            actual_time = row['response_time']
+            predicted_time = row['predicted_time']
+            if predicted_time > 0 and actual_time > 0:
+                error_time_log = np.log(actual_time + 0.1) - np.log(predicted_time + 0.1)
+                time_errors.append(error_time_log)
+
+                # Ratio error: actual / predicted
+                time_ratio = actual_time / predicted_time
+                time_ratio_errors.append(time_ratio)
+
+        correctness_errors = np.array(correctness_errors)
+        time_errors = np.array(time_errors)
+        time_ratio_errors = np.array(time_ratio_errors)
+
+        error_stats = {
+            'correctness_bias': np.mean(correctness_errors),
+            'correctness_std': np.std(correctness_errors),
+            'time_bias_log': np.mean(time_errors),
+            'time_bias_std': np.std(time_errors),
+            'time_ratio_mean': np.mean(time_ratio_errors),
+            'time_ratio_median': np.median(time_ratio_errors),
+            'n_samples': len(user_data)
+        }
+
+        if verbose:
+            print(f"\n  === Prediction Error Analysis ===")
+            print(f"  Correctness bias: {error_stats['correctness_bias']:+.3f} "
+                  f"(positive = actual better than predicted)")
+            print(f"  Correctness std: {error_stats['correctness_std']:.3f}")
+            print(f"  Time bias (log): {error_stats['time_bias_log']:+.3f} "
+                  f"(positive = actual slower than predicted)")
+            print(f"  Time ratio: {error_stats['time_ratio_mean']:.2f}x "
+                  f"(median: {error_stats['time_ratio_median']:.2f}x)")
+            print(f"  Samples: {error_stats['n_samples']}")
+
+            # Interpret biases
+            if abs(error_stats['correctness_bias']) > 0.1:
+                if error_stats['correctness_bias'] > 0:
+                    print(f"  ⚠ Model systematically UNDERESTIMATES user ability")
+                else:
+                    print(f"  ⚠ Model systematically OVERESTIMATES user ability")
+
+            if abs(error_stats['time_bias_log']) > 0.2:
+                if error_stats['time_bias_log'] > 0:
+                    print(f"  ⚠ Model systematically UNDERESTIMATES time needed")
+                else:
+                    print(f"  ⚠ Model systematically OVERESTIMATES time needed")
+
+        return error_stats
+
     def fit_user_specific(self, user_data: pd.DataFrame, user_id: str, verbose: bool = False):
         """
-        Train user-specific parameters using their prediction history with LNIRT ML estimation
+        Train user-specific parameters using ERROR-AWARE LNIRT ML estimation
 
-        This uses data from the predictions table which includes both predicted
-        and actual results to refine the user's ability and speed parameters.
+        This uses BOTH predicted and actual data from the predictions table to:
+        1. Detect systematic prediction biases
+        2. Optimize parameters using actual outcomes
+        3. Adjust parameters to correct historical prediction errors
 
         Args:
             user_data: DataFrame with columns ['difficulty', 'correct', 'response_time',
                                                'predicted_correct', 'predicted_time']
             user_id: User identifier
-            verbose: Print progress
+            verbose: Print detailed progress and error analysis
         """
         if verbose:
             print(f"  Training user-specific parameters for {user_id}...")
@@ -228,7 +307,10 @@ class TopicLNIRTModel:
                 avg_tau = 0.0
             self.user_params[user_id] = {'theta': avg_theta, 'tau': avg_tau}
 
-        # Define likelihood function for single user
+        # STEP 1: Analyze prediction errors (uses BOTH predicted and actual data)
+        error_stats = self._analyze_prediction_errors(user_data, verbose=verbose)
+
+        # STEP 2: Standard LNIRT likelihood on actual data
         def user_log_likelihood(params, data):
             theta, tau = params
             log_like = 0.0
@@ -243,7 +325,7 @@ class TopicLNIRTModel:
                 b = self.difficulty_params[difficulty]['b']
                 beta = self.difficulty_params[difficulty]['beta']
 
-                # IRT component
+                # IRT component: likelihood of observed correctness
                 p_correct = self._irt_probability(theta, a, b)
                 p_correct = np.clip(p_correct, 1e-10, 1 - 1e-10)
 
@@ -252,33 +334,94 @@ class TopicLNIRTModel:
                 else:
                     log_like += np.log(1 - p_correct)
 
-                # Lognormal RT component
+                # Lognormal RT component: likelihood of observed time
                 log_rt = np.log(response_time + 0.1)
                 log_like += self._log_rt_likelihood(log_rt, tau, beta, self.sigma)
 
             return -log_like  # Negative for minimization
 
-        # Optimize user-specific parameters
+        # STEP 3: Error-aware likelihood (penalizes parameters that would produce large errors)
+        def error_aware_likelihood(params, data, error_stats):
+            # Standard likelihood
+            base_likelihood = user_log_likelihood(params, data)
+
+            if error_stats is None:
+                return base_likelihood
+
+            theta, tau = params
+
+            # Error correction penalty
+            # If we have systematic biases, penalize parameters that don't correct them
+            penalty = 0.0
+
+            # Correctness bias correction
+            # Positive bias means user is better than predicted → increase theta
+            # Negative bias means user is worse than predicted → decrease theta
+            if abs(error_stats['correctness_bias']) > 0.05:
+                # Expected adjustment: bias is roughly proportional to theta error
+                # If correctness_bias = +0.2, we want to increase theta
+                theta_adjustment_needed = error_stats['correctness_bias'] * 2.0
+                current_theta = self.user_params[user_id]['theta']
+                theta_shift = theta - current_theta
+
+                # Penalize if we're not shifting theta in the right direction
+                if np.sign(theta_shift) != np.sign(theta_adjustment_needed):
+                    penalty += 0.5 * abs(theta_adjustment_needed)
+
+            # Time bias correction
+            # Positive log bias means user is slower than predicted → decrease tau
+            # Negative log bias means user is faster than predicted → increase tau
+            if abs(error_stats['time_bias_log']) > 0.15:
+                tau_adjustment_needed = -error_stats['time_bias_log']  # Negative because tau increases speed
+                current_tau = self.user_params[user_id]['tau']
+                tau_shift = tau - current_tau
+
+                # Penalize if we're not shifting tau in the right direction
+                if np.sign(tau_shift) != np.sign(tau_adjustment_needed):
+                    penalty += 0.5 * abs(tau_adjustment_needed)
+
+            return base_likelihood + penalty
+
+        # STEP 4: Optimize user-specific parameters with error-awareness
         initial_params = [
             self.user_params[user_id]['theta'],
             self.user_params[user_id]['tau']
         ]
 
+        # Try error-aware optimization first
         result = minimize(
-            user_log_likelihood,
+            error_aware_likelihood,
             initial_params,
-            args=(user_data,),
+            args=(user_data, error_stats),
             method='L-BFGS-B',
-            bounds=[(-3.0, 3.0), (-3.0, 3.0)]
+            bounds=[(-3.0, 3.0), (-3.0, 3.0)],
+            options={'maxiter': 100}
         )
 
         if result.success:
-            self.user_params[user_id]['theta'] = float(result.x[0])
-            self.user_params[user_id]['tau'] = float(result.x[1])
+            theta_new = float(result.x[0])
+            tau_new = float(result.x[1])
+
+            # STEP 5: Apply bias correction based on error analysis
+            if error_stats is not None:
+                # Additional correction for strong biases
+                if abs(error_stats['correctness_bias']) > 0.15:
+                    correction = error_stats['correctness_bias'] * 0.5
+                    theta_new += correction
+                    theta_new = np.clip(theta_new, -3.0, 3.0)
+
+                if abs(error_stats['time_bias_log']) > 0.25:
+                    correction = -error_stats['time_bias_log'] * 0.3
+                    tau_new += correction
+                    tau_new = np.clip(tau_new, -3.0, 3.0)
+
+            self.user_params[user_id]['theta'] = theta_new
+            self.user_params[user_id]['tau'] = tau_new
+
         else:
             # Fallback to simple estimation if optimization fails
             if verbose:
-                print(f"  Note: Using fallback estimation (optimization didn't converge)")
+                print(f"  ⚠ Note: Using fallback estimation (optimization didn't converge)")
 
             overall_accuracy = user_data['correct'].mean()
             overall_time = user_data['response_time'].mean()
@@ -291,8 +434,18 @@ class TopicLNIRTModel:
             tau_estimate = beta_ref - np.log(overall_time + 1)
             self.user_params[user_id]['tau'] = 0.7 * self.user_params[user_id]['tau'] + 0.3 * tau_estimate
 
+            # Apply error corrections in fallback mode too
+            if error_stats is not None:
+                if abs(error_stats['correctness_bias']) > 0.15:
+                    correction = error_stats['correctness_bias'] * 0.5
+                    self.user_params[user_id]['theta'] += correction
+
+                if abs(error_stats['time_bias_log']) > 0.25:
+                    correction = -error_stats['time_bias_log'] * 0.3
+                    self.user_params[user_id]['tau'] += correction
+
         if verbose:
-            print(f"  ✓ User parameters updated (LNIRT ML estimation)")
+            print(f"\n  ✓ User parameters updated (Error-Aware LNIRT ML)")
             print(f"    Ability (θ): {self.user_params[user_id]['theta']:.3f}")
             print(f"    Speed (τ): {self.user_params[user_id]['tau']:.3f}")
 
