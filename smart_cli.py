@@ -246,37 +246,51 @@ def update_command(args):
     print(f"  Time: {args.time:.1f}s")
     print()
 
-    # Update database
+    # Update database with actual results
     db.update_prediction(args.task_id, args.correct, args.time)
     print("✓ Database updated")
 
-    # Update model (dual learning)
+    # AUTOMATIC USER-SPECIFIC TRAINING
+    # As soon as actual data is recorded, immediately train personalized model
     print()
-    print("Updating model...")
+    print("=" * 70)
+    print("AUTOMATIC USER-SPECIFIC TRAINING")
+    print("=" * 70)
 
     manager = TopicModelManager()
     model = manager.get_model(prediction['topic'])
 
-    # Personalized learning: update user-specific parameters
-    model.update_from_response(
-        prediction['user_id'],
-        prediction['difficulty'],
-        args.correct,
-        args.time
-    )
+    # Get ALL completed tasks for this user (with predicted + actual data)
+    user_training_data = db.get_user_training_data(prediction['user_id'], prediction['topic'])
 
-    manager.save_model(prediction['topic'])
-    print("✓ Model updated (personalized learning applied)")
+    if len(user_training_data) > 0:
+        print(f"\nTraining personalized model for {prediction['user_id']}...")
+        print(f"  Using {len(user_training_data)} completed tasks")
 
-    # General learning: retrain on accumulated data if enough new data
-    training_data = db.get_training_data(prediction['topic'])
-    if len(training_data) >= args.retrain_threshold:
-        print(f"✓ Retraining model on {len(training_data)} accumulated responses...")
-        model.fit(training_data, verbose=False)
+        # Run full error-aware user-specific training
+        model.fit_user_specific(user_training_data, prediction['user_id'], verbose=True)
+
         manager.save_model(prediction['topic'])
-        print("✓ General model parameters updated")
+        print(f"\n✓ Personalized model updated for {prediction['user_id']}")
     else:
-        print(f"  (General retrain will occur after {args.retrain_threshold - len(training_data)} more responses)")
+        print(f"  Note: No training data yet for {prediction['user_id']}")
+
+    # General training pool: actual data is already added to training_data table
+    # (happens in db.update_prediction via add_training_data)
+    print()
+    print("✓ Actual results added to general training pool")
+
+    # Optional: trigger general retraining if threshold met
+    if args.retrain_threshold:
+        new_training_data = db.get_training_data(prediction['topic'], only_new=True)
+        if len(new_training_data) >= args.retrain_threshold:
+            print(f"\n✓ Threshold met: Retraining general model on {len(new_training_data)} new responses...")
+            model.fit(new_training_data, verbose=False)
+            db.mark_training_data_used(prediction['topic'])
+            manager.save_model(prediction['topic'])
+            print("✓ General model parameters updated")
+        else:
+            print(f"  (General retrain will occur after {args.retrain_threshold - len(new_training_data)} more responses)")
 
     db.close()
 
@@ -382,7 +396,7 @@ def main():
     train_parser = subparsers.add_parser('train', help='Train model on topic data')
     train_parser.add_argument('--topic', required=True, help='Topic name')
     train_parser.add_argument('--data-file', help='Path to training CSV (optional if training from database)')
-    train_parser.add_argument('--user-id', help='Train for specific user only (uses prediction history)')
+    train_parser.add_argument('--user-id', help='Manual user-specific training (NOTE: happens automatically on update)')
     train_parser.add_argument('--stats', action='store_true', help='Show statistics after training')
     train_parser.set_defaults(func=train_command)
 

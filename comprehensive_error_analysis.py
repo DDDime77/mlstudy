@@ -347,6 +347,7 @@ try:
 
     # Clean up
     db.conn.execute(f"DELETE FROM predictions WHERE task_id={task_id}")
+    db.conn.execute(f"DELETE FROM training_data WHERE user_id='workflow_test_user' AND topic='calculus'")
     db.conn.commit()
 
 except Exception as e:
